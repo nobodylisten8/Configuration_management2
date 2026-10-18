@@ -2,46 +2,38 @@
 import argparse
 import sys
 
+from .collector import get_direct_dependencies
+
 VALID_EXTENSIONS = (".png", ".svg", ".txt")
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse and validate command line arguments."""
+    """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
         description="Dependency graph visualizer."
     )
     parser.add_argument(
-        "--package",
-        type=str,
-        required=True,
+        "--package", type=str, required=True,
         help="Name of the analyzed package"
     )
     parser.add_argument(
-        "--repo-url",
-        type=str,
-        required=True,
+        "--repo-url", type=str, required=True,
         help="URL or path to test repository file"
     )
     parser.add_argument(
-        "--test-mode",
-        action="store_true",
+        "--test-mode", action="store_true",
         help="Enable test repository working mode"
     )
     parser.add_argument(
-        "--version",
-        type=str,
-        default="latest",
+        "--version", type=str, default="latest",
         help="Package version"
     )
     parser.add_argument(
-        "--output-file",
-        type=str,
-        default="graph.png",
+        "--output-file", type=str, default="graph.png",
         help="Name of the generated graph image file"
     )
     parser.add_argument(
-        "--ascii-tree",
-        action="store_true",
+        "--ascii-tree", action="store_true",
         help="Output dependencies in ASCII-tree format"
     )
     return parser.parse_args()
@@ -75,12 +67,40 @@ def print_configuration(args: argparse.Namespace) -> None:
     print("---------------------")
 
 
+def print_dependencies(
+    name: str, version: str, deps: list[str]
+) -> None:
+    """Print direct dependencies of a package.
+
+    Args:
+        name: Package name.
+        version: Package version.
+        deps: List of direct dependencies.
+    """
+    print(f"\nDirect dependencies of {name}=={version}:")
+    if not deps:
+        print("  (no dependencies)")
+        return
+    for dep in deps:
+        print(f"  - {dep}")
+
+
 def main() -> None:
     """Main function to run the application."""
     args = parse_arguments()
     validate_arguments(args)
     print_configuration(args)
-    print("Stage 1 completed successfully.")
+
+    try:
+        deps = get_direct_dependencies(
+            args.repo_url, args.package, args.version
+        )
+        print_dependencies(args.package, args.version, deps)
+    except (ValueError, FileNotFoundError, OSError) as error:
+        print(f"Error: {error}")
+        sys.exit(1)
+
+    print("\nStage 2 completed successfully.")
 
 
 if __name__ == "__main__":

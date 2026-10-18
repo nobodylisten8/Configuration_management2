@@ -23,3 +23,44 @@
 pip install pytest
 python -m pytest tests/
 ```
+## Этап 2: Сбор данных
+
+Реализована основная логика получения данных о зависимостях из репозиториев Alpine Linux в формате APK. Сбор выполняется без использования сторонних библиотек и менеджеров пакетов.
+
+### Как это работает
+
+1. По указанному `--repo-url` скачивается файл `APKINDEX.tar.gz`.
+2. Архив распаковывается в памяти через `tarfile` + `io.BytesIO`.
+3. Извлекается текстовый файл `APKINDEX`.
+4. Файл парсится в список пакетов с полями `name`, `version`, `dependencies`.
+5. Находится пакет по имени и версии.
+6. Выводятся его прямые зависимости.
+
+### Примеры использования
+
+**Получение зависимостей реального пакета:**
+```bash
+python -m src.main --package alpine-baselayout --version 3.6.5-r0 --repo-url https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/
+```
+
+**Пакет с одной зависимостью:**
+```bash
+python -m src.main --package busybox --version 1.36.1-r31 --repo-url https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/
+```
+
+**Чтение из локального файла:**
+```bash
+python -m src.main --package my_pkg --version 1.0.0 --repo-url /path/to/APKINDEX
+```
+
+### Обработка ошибок
+
+**Пакет не найден:**
+```bash
+python -m src.main --package nonexistent --version 1.0 --repo-url https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/
+```
+
+**Неверный URL (404):**
+```bash
+Error: HTTP Error 404: Not Found
+```
