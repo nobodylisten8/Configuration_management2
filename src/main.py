@@ -5,6 +5,12 @@ import urllib.parse
 from pathlib import Path
 
 from .collector import get_direct_dependencies
+from .graph import (
+    build_dependency_graph,
+    detect_cycles,
+    get_transitive_dependencies,
+)
+from .test_loader import load_test_graph, get_test_dependencies
 
 VALID_EXTENSIONS = (".png", ".svg", ".txt")
 VALID_URL_SCHEMES = ("http://", "https://")
@@ -108,21 +114,79 @@ def print_dependencies(
         print(f"  - {dep}")
 
 
+def print_graph(graph: dict[str, list[str]]) -> None:
+    """Print dependency graph."""
+    print("\nDependency Graph:")
+    for package, deps in sorted(graph.items()):
+        deps_str = ", ".join(deps) if deps else "(none)"
+        print(f"  {package} -> {deps_str}")
+
+
+def print_cycles(cycles: list[list[str]]) -> None:
+    """Print detected cycles."""
+    if not cycles:
+        print("\nNo cycles detected.")
+        return
+    print(f"\nDetected {len(cycles)} cycle(s):")
+    for i, cycle in enumerate(cycles, 1):
+        cycle_str = " -> ".join(cycle)
+        print(f"  Cycle {i}: {cycle_str}")
+
+
+def print_transitive_deps(
+    package: str, deps: set[str]
+) -> None:
+    """Print transitive dependencies."""
+    print(f"\nTransitive dependencies of {package}:")
+    if not deps:
+        print("  (no transitive dependencies)")
+        return
+    for dep in sorted(deps):
+        print(f"  - {dep}")
+
+
+def run_test_mode(args: argparse.Namespace) -> None:
+    """Run application in test mode."""
+    graph = load_test_graph(args.repo_url)
+    get_deps = get_test_dependencies(graph)
+
+    print(f"\nTest Mode: Analyzing package '{args.package}'")
+    print(f"Graph loaded from: {args.repo_url}")
+    print(f"Total packages in graph: {len(graph)}")
+
+    full_graph = build_dependency_graph(args.package, get_deps)
+    print_graph(full_graph)
+
+    cycles = detect_cycles(full_graph)
+    print_cycles(cycles)
+
+    trans_deps = get_transitive_dependencies(args.package, get_deps)
+    print_transitive_deps(args.package, trans_deps)
+
+
+def run_production_mode(args: argparse.Namespace) -> None:
+    """Run application in production mode."""
+    deps = get_direct_dependencies(
+        args.repo_url, args.package, args.version
+    )
+    print_dependencies(args.package, args.version, deps)
+
+
 def main() -> None:
     """Main function to run the application."""
     args = parse_arguments()
     validate_arguments(args)
 
     try:
-        deps = get_direct_dependencies(
-            args.repo_url, args.package, args.version
-        )
-        print_dependencies(args.package, args.version, deps)
+        if args.test_mode:
+            run_test_mode(args)
+        else:
+            run_production_mode(args)
     except (ValueError, FileNotFoundError, OSError) as error:
         print(f"Error: {error}")
         sys.exit(1)
 
-    print("\nStage 2 completed successfully.")
+    print("\nStage 3 completed successfully.")
 
 
 if __name__ == "__main__":
