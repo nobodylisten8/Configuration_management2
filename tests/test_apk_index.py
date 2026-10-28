@@ -1,6 +1,7 @@
 """Tests for APKINDEX parser module."""
 from src.apk_index import parse_apk_index, _parse_package_block
 
+EXPECTED_PACKAGES_COUNT = 3
 
 SAMPLE_INDEX = (
     "P:alpine-baselayout\n"
@@ -20,7 +21,7 @@ SAMPLE_INDEX = (
 def test_parse_apk_index_counts_packages():
     """Test that parser finds all packages."""
     packages = parse_apk_index(SAMPLE_INDEX)
-    assert len(packages) == 3
+    assert len(packages) == EXPECTED_PACKAGES_COUNT
 
 
 def test_parse_apk_index_extracts_name():
