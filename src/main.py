@@ -7,11 +7,15 @@ from pathlib import Path
 from .collector import get_direct_dependencies
 from .graph import (
     build_dependency_graph,
-    get_load_order,
     detect_cycles,
     get_transitive_dependencies,
 )
 from .test_loader import load_test_graph, get_test_dependencies
+from .visualizer import (
+    generate_plantuml,
+    download_plantuml_png,
+    generate_ascii_tree,
+)
 
 VALID_EXTENSIONS = (".png", ".svg", ".txt")
 VALID_URL_SCHEMES = ("http://", "https://")
@@ -23,6 +27,7 @@ ERROR_EMPTY_VERSION = "Error: Package version cannot be empty."
 ERROR_BAD_EXTENSION = (
     "Error: Output file must have .png, .svg, or .txt extension."
 )
+ERROR_PLANTUML_FAILED = "Error: Failed to generate PNG image."
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -53,10 +58,6 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--ascii-tree", action="store_true",
         help="Output dependencies in ASCII-tree format"
-    )
-    parser.add_argument(
-        "--load-order", action="store_true",
-        help="Output dependencies in load order (topological sort)"
     )
     return parser.parse_args()
 
@@ -150,14 +151,40 @@ def print_transitive_deps(
         print(f"  - {dep}")
 
 
-def print_load_order(order: list[str], has_cycles: bool) -> None:
-    """Print package load order."""
-    print("\nLoad Order:")
-    if has_cycles or not order:
-        print("  (cannot determine due to cyclic dependencies)")
-        return
-    for i, package in enumerate(order, 1):
-        print(f"  {i}. {package}")
+def print_ascii_tree(
+    graph: dict[str, list[str]],
+    package: str,
+) -> None:
+    """Print ASCII tree of dependencies."""
+    print(f"\nASCII Tree for {package}:")
+    tree = generate_ascii_tree(graph, package)
+    print(tree)
+
+
+def save_plantuml_and_png(
+    graph: dict[str, list[str]],
+    output_file: str,
+) -> None:
+    """Generate PlantUML text and download PNG image.
+
+    Args:
+        graph: Dependency graph as adjacency list.
+        output_file: Path to save PNG file.
+    """
+    plantuml_text = generate_plantuml(graph)
+
+    plantuml_file = output_file.rsplit(".", 1)[0] + ".puml"
+    with open(plantuml_file, "w", encoding="utf-8") as file:
+        file.write(plantuml_text)
+    print(f"\nPlantUML diagram saved to: {plantuml_file}")
+
+    if output_file.endswith(".png"):
+        try:
+            download_plantuml_png(plantuml_text, output_file)
+            print(f"PNG image saved to: {output_file}")
+        except OSError as error:
+            print(f"Warning: {error}")
+            print("PlantUML file saved, but PNG download failed.")
 
 
 def run_test_mode(args: argparse.Namespace) -> None:
@@ -175,9 +202,10 @@ def run_test_mode(args: argparse.Namespace) -> None:
     cycles = detect_cycles(full_graph)
     print_cycles(cycles)
 
-    if args.load_order:
-        order = get_load_order(full_graph)
-        print_load_order(order, bool(cycles))
+    if args.ascii_tree:
+        print_ascii_tree(full_graph, args.package)
+
+    save_plantuml_and_png(full_graph, args.output_file)
 
     trans_deps = get_transitive_dependencies(args.package, get_deps)
     print_transitive_deps(args.package, trans_deps)
@@ -189,6 +217,10 @@ def run_production_mode(args: argparse.Namespace) -> None:
         args.repo_url, args.package, args.version
     )
     print_dependencies(args.package, args.version, deps)
+
+    if args.ascii_tree:
+        graph = {args.package: deps}
+        print_ascii_tree(graph, args.package)
 
 
 def main() -> None:
@@ -205,7 +237,7 @@ def main() -> None:
         print(f"Error: {error}")
         sys.exit(1)
 
-    print("\nStage 3 completed successfully.")
+    print("\nStage 5 completed successfully.")
 
 
 if __name__ == "__main__":
