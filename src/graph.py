@@ -112,3 +112,39 @@ def get_transitive_dependencies(
     _bfs_recursive([start_package])
     visited.discard(start_package)
     return visited
+
+
+def get_load_order(graph: dict[str, list[str]]) -> list[str]:
+    """Get package load order using topological sort (Kahn's algorithm).
+
+    Args:
+        graph: Dependency graph as adjacency list.
+               graph[A] = [B, C] means A depends on B and C.
+
+    Returns:
+        List of packages in load order. Empty list if cycle is detected.
+    """
+    # Build reverse graph: if A depends on B, then B -> A
+    reverse_graph = {node: [] for node in graph}
+    in_degree = {node: 0 for node in graph}
+
+    for node in graph:
+        for dep in graph[node]:
+            if dep in reverse_graph:
+                reverse_graph[dep].append(node)
+                in_degree[node] += 1
+
+    queue = [node for node in in_degree if in_degree[node] == 0]
+    order = []
+
+    while queue:
+        node = queue.pop(0)
+        order.append(node)
+        for dependent in reverse_graph.get(node, []):
+            in_degree[dependent] -= 1
+            if in_degree[dependent] == 0:
+                queue.append(dependent)
+
+    if len(order) != len(graph):
+        return []
+    return order

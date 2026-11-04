@@ -62,3 +62,22 @@ def test_get_transitive_dependencies():
     assert "D" in deps
     assert "E" in deps
     assert "A" not in deps
+
+
+def test_get_load_order_acyclic():
+    """Test topological sort on acyclic graph."""
+    from src.graph import get_load_order
+    graph = {"A": ["B", "C"], "B": ["D"], "C": ["D"], "D": []}
+    order = get_load_order(graph)
+    assert order.index("D") < order.index("B")
+    assert order.index("D") < order.index("C")
+    assert order.index("B") < order.index("A")
+    assert order.index("C") < order.index("A")
+
+
+def test_get_load_order_cyclic():
+    """Test topological sort on cyclic graph returns empty list."""
+    from src.graph import get_load_order
+    graph = {"A": ["B"], "B": ["C"], "C": ["A"]}
+    order = get_load_order(graph)
+    assert order == []

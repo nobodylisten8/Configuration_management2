@@ -7,6 +7,7 @@ from pathlib import Path
 from .collector import get_direct_dependencies
 from .graph import (
     build_dependency_graph,
+    get_load_order,
     detect_cycles,
     get_transitive_dependencies,
 )
@@ -52,6 +53,10 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--ascii-tree", action="store_true",
         help="Output dependencies in ASCII-tree format"
+    )
+    parser.add_argument(
+        "--load-order", action="store_true",
+        help="Output dependencies in load order (topological sort)"
     )
     return parser.parse_args()
 
@@ -145,6 +150,16 @@ def print_transitive_deps(
         print(f"  - {dep}")
 
 
+def print_load_order(order: list[str], has_cycles: bool) -> None:
+    """Print package load order."""
+    print("\nLoad Order:")
+    if has_cycles or not order:
+        print("  (cannot determine due to cyclic dependencies)")
+        return
+    for i, package in enumerate(order, 1):
+        print(f"  {i}. {package}")
+
+
 def run_test_mode(args: argparse.Namespace) -> None:
     """Run application in test mode."""
     graph = load_test_graph(args.repo_url)
@@ -159,6 +174,10 @@ def run_test_mode(args: argparse.Namespace) -> None:
 
     cycles = detect_cycles(full_graph)
     print_cycles(cycles)
+
+    if args.load_order:
+        order = get_load_order(full_graph)
+        print_load_order(order, bool(cycles))
 
     trans_deps = get_transitive_dependencies(args.package, get_deps)
     print_transitive_deps(args.package, trans_deps)
