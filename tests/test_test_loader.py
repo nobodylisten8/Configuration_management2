@@ -5,7 +5,8 @@ from src.test_loader import load_test_graph, get_test_dependencies
 
 
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
-
+SIMPLE_GRAPH_NODE_COUNT = 5
+COMPLEX_GRAPH_NODE_COUNT = 8
 
 def test_load_simple_graph():
     """Test loading simple acyclic graph."""
@@ -17,7 +18,7 @@ def test_load_simple_graph():
     assert graph["C"] == ["D", "E"]
     assert graph["D"] == []
     assert graph["E"] == []
-    assert len(graph) == 5
+    assert len(graph) == SIMPLE_GRAPH_NODE_COUNT
 
 
 def test_load_cyclic_graph():
@@ -38,7 +39,7 @@ def test_load_complex_graph():
     """Test loading complex graph with multiple dependencies."""
     file_path = str(TEST_DATA_DIR / "complex_graph.txt")
     graph = load_test_graph(file_path)
-    assert len(graph) == 8
+    assert len(graph) == COMPLEX_GRAPH_NODE_COUNT
     assert graph["A"] == ["B", "C", "D"]
     assert graph["B"] == ["E", "F"]
     assert graph["C"] == ["F", "G"]

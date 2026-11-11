@@ -58,7 +58,6 @@ def download_plantuml_png(
     """Download PNG image from PlantUML online server."""
     encoded = encode_plantuml(plantuml_text)
 
-    # Пробуем несколько серверов
     servers = [
         f"https://www.plantuml.com/plantuml/png/{encoded}",
         f"https://plantuml.com/plantuml/png/{encoded}",
