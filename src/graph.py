@@ -114,6 +114,69 @@ def get_transitive_dependencies(
     return visited
 
 
+def _build_reverse_graph(
+    graph: dict[str, list[str]],
+) -> tuple[dict[str, list[str]], dict[str, int]]:
+    """Build reverse graph and compute in-degrees.
+
+    Args:
+        graph: Dependency graph as adjacency list.
+
+    Returns:
+        Tuple of (reverse_graph, in_degree).
+    """
+    reverse_graph: dict[str, list[str]] = {node: [] for node in graph}
+    in_degree: dict[str, int] = {node: 0 for node in graph}
+
+    for node in graph:
+        for dep in graph[node]:
+            if dep in reverse_graph:
+                reverse_graph[dep].append(node)
+                in_degree[node] += 1
+
+    return reverse_graph, in_degree
+
+
+def _find_initial_nodes(in_degree: dict[str, int]) -> list[str]:
+    """Find nodes with zero in-degree.
+
+    Args:
+        in_degree: Mapping of node to its in-degree.
+
+    Returns:
+        List of nodes with in-degree equal to zero.
+    """
+    return [node for node in in_degree if in_degree[node] == 0]
+
+
+def _process_queue(
+    queue: list[str],
+    reverse_graph: dict[str, list[str]],
+    in_degree: dict[str, int],
+) -> list[str]:
+    """Process BFS queue for topological sort.
+
+    Args:
+        queue: Initial queue of zero in-degree nodes.
+        reverse_graph: Reverse adjacency list.
+        in_degree: Current in-degree of each node.
+
+    Returns:
+        List of nodes in topological order.
+    """
+    order: list[str] = []
+
+    while queue:
+        node = queue.pop(0)
+        order.append(node)
+        for dependent in reverse_graph.get(node, []):
+            in_degree[dependent] -= 1
+            if in_degree[dependent] == 0:
+                queue.append(dependent)
+
+    return order
+
+
 def get_load_order(graph: dict[str, list[str]]) -> list[str]:
     """Get package load order using topological sort (Kahn's algorithm).
 
@@ -124,26 +187,9 @@ def get_load_order(graph: dict[str, list[str]]) -> list[str]:
     Returns:
         List of packages in load order. Empty list if cycle is detected.
     """
-    # Build reverse graph: if A depends on B, then B -> A
-    reverse_graph = {node: [] for node in graph}
-    in_degree = {node: 0 for node in graph}
-
-    for node in graph:
-        for dep in graph[node]:
-            if dep in reverse_graph:
-                reverse_graph[dep].append(node)
-                in_degree[node] += 1
-
-    queue = [node for node in in_degree if in_degree[node] == 0]
-    order = []
-
-    while queue:
-        node = queue.pop(0)
-        order.append(node)
-        for dependent in reverse_graph.get(node, []):
-            in_degree[dependent] -= 1
-            if in_degree[dependent] == 0:
-                queue.append(dependent)
+    reverse_graph, in_degree = _build_reverse_graph(graph)
+    queue = _find_initial_nodes(in_degree)
+    order = _process_queue(queue, reverse_graph, in_degree)
 
     if len(order) != len(graph):
         return []
